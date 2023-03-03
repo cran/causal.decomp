@@ -4,19 +4,8 @@
 \alias{mmi}
 \title{Multiple-Mediator-Imputation Estimation Method}
 \usage{
-mmi(
-  fit.r = NULL,
-  fit.x,
-  fit.y,
-  treat,
-  covariates,
-  sims = 100,
-  conf.level = 0.95,
-  conditional = TRUE,
-  cluster = NULL,
-  long = FALSE,
-  mc.cores = 1L
-)
+mmi(fit.r = NULL, fit.x, fit.y, treat, covariates, sims = 100, conf.level = .95,
+    conditional = TRUE, cluster = NULL, long = TRUE, mc.cores = 1L, seed = NULL)
 }
 \arguments{
 \item{fit.r}{a fitted model object for treatment. Can be of class 'CBPS' or
@@ -44,30 +33,32 @@ Default is .95, which returns the 2.5 and 97.5 percentiles of the simulated
 quantities.}
 
 \item{conditional}{a logical value. If 'TRUE', the function will return the
-estimates conditional on those covariate values; and all covariates in
+estimates conditional on those covariate values, and all covariates in
 mediator and outcome models need to be centered prior to fitting.
 Default is 'TRUE'. If 'FALSE', 'fit.r' needs to be specified.}
 
 \item{cluster}{a vector of cluster indicators for the bootstrap. If provided,
-the cluster bootdtrap is used. Default is 'NULL'.}
+the cluster bootstrap is used. Default is 'NULL'.}
 
 \item{long}{a logical value. If 'TRUE', the output will contain the entire
-sets of estimates for all bootsrap samples. Default is 'FALSE'.}
+sets of estimates for all bootstrap samples. Default is 'TRUE'.}
 
 \item{mc.cores}{The number of cores to use. Must be exactly 1 on Windows.}
+
+\item{seed}{seed number for the reproducibility of results. Default is `NULL'.}
 }
 \value{
 \item{result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction, and the percentile bootsrap
+disparity remaining, and disparity reduction, and the percentile bootstrap
 confidence intervals for each estimate.}
 \item{all.result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction for all bootsrap samples. Returned
+disparity remaining, and disparity reduction for all bootstrap samples. Returned
 if 'long' is 'TRUE'.}
 }
 \description{
 'mmi' is used to estimate the initial disparity, disparity reduction, and
 disparity remaining for causal decomposition analysis, using the
-multiple-mediator-imputation estimation method proposed by Park et. al. (2020).
+multiple-mediator-imputation estimation method proposed by Park et al. (2020).
 }
 \details{
 This function returns the point estimates of the initial disparity,
@@ -98,31 +89,31 @@ multiple-mediator-imputation method suggested by Park et al. (2020).
 See the references for more details.
 
 If one wants to make the inference conditional on baseline covariates,
-set 'conditional = T' and center the data before fitting the models.
+set 'conditional = TRUE' and center the data before fitting the models.
 
-As of version 0.0.1, the intetmediate confounder model ('fit.x') can be of
+As of version 0.1.0, the intetmediate confounder model ('fit.x') can be of
 class 'lm', 'glm', 'multinom', or 'polr', corresponding respectively to the
 linear regression models and generalized linear models, multinomial
 log-linear models, and ordered response models.
 The outcome model ('fit.y') can be of class 'lm' or 'glm'.
 Also, the treatment model ('fit.r') can be of class 'CBPS' or 'SumStat', both of
-which use the propensity score weighting. It is only necessary when 'conditional = F'.
+which use the propensity score weighting. It is only necessary when 'conditional = FALSE'.
 }
 \examples{
 data(sdata)
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 1-a: Continuous Outcome
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata)
 fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata,
           family = binomial(link = "logit"))
 require(MASS)
 fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata)
-fit.s1 <- lm(S ~ R + C.num + C.bin, data = sdata)
+fit.x1 <- lm(X ~ R + C.num + C.bin, data = sdata)
 require(nnet)
 fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata)
-fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
           data = sdata)
 
 require(PSweight)
@@ -131,25 +122,25 @@ fit.r1 <- SumStat(R ~ C.num + C.bin, data = sdata, weight = "IPW")
 fit.r2 <- CBPS(R ~ C.num + C.bin, data = sdata, method = "exact",
           standardize = "TRUE")}
 
-res.1a <- mmi(fit.r = fit.r1, fit.x = fit.s1,
+res.1a <- mmi(fit.r = fit.r1, fit.x = fit.x1,
           fit.y = fit.y1, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1a
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 1-b: Binary Outcome
-#-----------------------------------------------------------#
-\donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#------------------------------------------------------------------------------#
+\donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
           data = sdata, family = binomial(link = "logit"))
 
-res.1b <- mmi(fit.r = fit.r1, fit.x = fit.s1,
+res.1b <- mmi(fit.r = fit.r1, fit.x = fit.x1,
           fit.y = fit.y2, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1b}
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 2-a: Continuous Outcome, Conditional on Covariates
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 \donttest{# For conditional = TRUE, need to create data with centered covariates
 # copy data
 sdata.c <- sdata
@@ -164,33 +155,33 @@ fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata.c)
 fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata.c,
           family = binomial(link = "logit"))
 fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata.c)
-fit.s2 <- lm(S ~ R + C.num + C.bin, data = sdata.c)
-fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+fit.x2 <- lm(X ~ R + C.num + C.bin, data = sdata.c)
+fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
           data = sdata.c)
 
-res.2a <- mmi(fit.x = fit.s2,
+res.2a <- mmi(fit.x = fit.x2,
           fit.y = fit.y1, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2a}
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 2-b: Binary Outcome, Conditional on Covariates
-#-----------------------------------------------------------#
-\donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#------------------------------------------------------------------------------#
+\donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
           data = sdata.c, family = binomial(link = "logit"))
 
-res.2b <- mmi(fit.x = fit.s2,
+res.2b <- mmi(fit.x = fit.x2,
           fit.y = fit.y2, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2b}
 }
 \references{
 Park, S., Lee, C., and Qin, X. (2020). "Estimation and sensitivity analysis
-for causal decomposition in heath disparity research", arXiv preprint arXiv:2008.12812.
+for causal decomposition in heath disparity research", Sociological Methods & Research, 00491241211067516.
 
-Park, S., Kang, S., and Lee, C. (2021+). "Choosing an Optimal Method for Causal
-Decomposition Analysis: A Better Practice for Identifying Contributing Factors to
-Health Disparities".
+Park, S., Kang, S., and Lee, C. (2021+). "Choosing an optimal method for causal
+decomposition analysis: A better practice for identifying contributing factors to
+health disparities". arXiv preprint arXiv:2109.06940.
 }
 \seealso{
 \code{\link{smi}}

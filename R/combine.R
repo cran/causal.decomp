@@ -1,5 +1,5 @@
 # A function used in 'mmi', 'smi', and 'pocr' for comparing all pairs of R
-combine <- function(fit.r, fit.s, fit.m, fit.y, func){
+combine <- function(fit.r, fit.x, fit.m, fit.y, func, weights){
   
   # Model frame Y model
   y.data <- model.frame(fit.y)
@@ -47,14 +47,14 @@ combine <- function(fit.r, fit.s, fit.m, fit.y, func){
     for(l in 2:length(levels(y.data[, treat]))){
       res <- c(res, select.treat(fit.m = fit.m, fit.y = fit.y, sel.lev.treat = l,
                                      ref.lev.treat = 1,
-                                     prop.treat = prop.treat, wy = wy, func = func))
+                                     prop.treat = prop.treat, wy = wy, func = func, weights = weights))
     }
   } else if (func == "pocr"){
     environment(select.treat.pocr) <- environment()
     # Do all combinations, ref.lev.treat vs. sel.lev.treat
     res <- NULL
     for(l in 2:length(levels(y.data[, treat]))){
-      res <- c(res, select.treat.pocr(fit.s = fit.s, fit.m = fit.m, fit.y = fit.y, sel.lev.treat = l,
+      res <- c(res, select.treat.pocr(fit.x = fit.x, fit.m = fit.m, fit.y = fit.y, sel.lev.treat = l,
                                       ref.lev.treat = 1))
     }
   }

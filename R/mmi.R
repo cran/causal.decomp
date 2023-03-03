@@ -2,7 +2,11 @@
 #'
 #' 'mmi' is used to estimate the initial disparity, disparity reduction, and
 #' disparity remaining for causal decomposition analysis, using the
-#' multiple-mediator-imputation estimation method proposed by Park et. al. (2020).
+#' multiple-mediator-imputation estimation method proposed by Park et al. (2020).
+#' 
+#' @usage 
+#' mmi(fit.r = NULL, fit.x, fit.y, treat, covariates, sims = 100, conf.level = .95,
+#'     conditional = TRUE, cluster = NULL, long = TRUE, mc.cores = 1L, seed = NULL)
 #'
 #' @details This function returns the point estimates of the initial disparity,
 #'   disparity reduction, and disparity remaining for a categorical
@@ -32,15 +36,15 @@
 #'   See the references for more details.
 #'
 #'   If one wants to make the inference conditional on baseline covariates,
-#'   set 'conditional = T' and center the data before fitting the models.
+#'   set 'conditional = TRUE' and center the data before fitting the models.
 #'
-#'   As of version 0.0.1, the intetmediate confounder model ('fit.x') can be of
+#'   As of version 0.1.0, the intetmediate confounder model ('fit.x') can be of
 #'   class 'lm', 'glm', 'multinom', or 'polr', corresponding respectively to the
 #'   linear regression models and generalized linear models, multinomial
 #'   log-linear models, and ordered response models.
 #'   The outcome model ('fit.y') can be of class 'lm' or 'glm'.
 #'   Also, the treatment model ('fit.r') can be of class 'CBPS' or 'SumStat', both of
-#'   which use the propensity score weighting. It is only necessary when 'conditional = F'.
+#'   which use the propensity score weighting. It is only necessary when 'conditional = FALSE'.
 #'
 #' @param fit.r a fitted model object for treatment. Can be of class 'CBPS' or
 #'   'SumStat'. Default is 'NULL'. Only necessary if 'conditional' is 'FALSE'.
@@ -60,22 +64,23 @@
 #'   used in the models. Each covariate can be categorical with two or more
 #'   categories (two- or multi-valued factor) or continuous (numeric).
 #' @param conditional a logical value. If 'TRUE', the function will return the
-#'   estimates conditional on those covariate values; and all covariates in
+#'   estimates conditional on those covariate values, and all covariates in
 #'   mediator and outcome models need to be centered prior to fitting.
 #'   Default is 'TRUE'. If 'FALSE', 'fit.r' needs to be specified.
 #' @param cluster a vector of cluster indicators for the bootstrap. If provided,
-#'   the cluster bootdtrap is used. Default is 'NULL'.
+#'   the cluster bootstrap is used. Default is 'NULL'.
 #' @param long a logical value. If 'TRUE', the output will contain the entire
-#'   sets of estimates for all bootsrap samples. Default is 'FALSE'.
+#'   sets of estimates for all bootstrap samples. Default is 'TRUE'.
 #' @param mc.cores The number of cores to use. Must be exactly 1 on Windows.
+#' @param seed seed number for the reproducibility of results. Default is `NULL'.
 #'
 #' @return
 #'
 #'   \item{result}{a matrix containing the point estimates of the initial disparity,
-#'   disparity remaining, and disparity reduction, and the percentile bootsrap
+#'   disparity remaining, and disparity reduction, and the percentile bootstrap
 #'   confidence intervals for each estimate.}
 #'   \item{all.result}{a matrix containing the point estimates of the initial disparity,
-#'   disparity remaining, and disparity reduction for all bootsrap samples. Returned
+#'   disparity remaining, and disparity reduction for all bootstrap samples. Returned
 #'   if 'long' is 'TRUE'.}
 #'
 #' @author
@@ -86,28 +91,28 @@
 #'
 #' @references
 #'   Park, S., Lee, C., and Qin, X. (2020). "Estimation and sensitivity analysis
-#'   for causal decomposition in heath disparity research", arXiv preprint arXiv:2008.12812.
+#'   for causal decomposition in heath disparity research", Sociological Methods & Research, 00491241211067516.
 #'
-#'   Park, S., Kang, S., and Lee, C. (2021+). "Choosing an Optimal Method for Causal
-#'   Decomposition Analysis: A Better Practice for Identifying Contributing Factors to
-#'   Health Disparities".
+#'   Park, S., Kang, S., and Lee, C. (2021+). "Choosing an optimal method for causal
+#'   decomposition analysis: A better practice for identifying contributing factors to
+#'   health disparities". arXiv preprint arXiv:2109.06940.
 #'
 #' @export
 #' @examples
 #' data(sdata)
 #'
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' # Example 1-a: Continuous Outcome
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata)
 #' fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata,
 #'           family = binomial(link = "logit"))
 #' require(MASS)
 #' fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata)
-#' fit.s1 <- lm(S ~ R + C.num + C.bin, data = sdata)
+#' fit.x1 <- lm(X ~ R + C.num + C.bin, data = sdata)
 #' require(nnet)
 #' fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata)
-#' fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#' fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
 #'           data = sdata)
 #'
 #' require(PSweight)
@@ -116,25 +121,25 @@
 #' fit.r2 <- CBPS(R ~ C.num + C.bin, data = sdata, method = "exact",
 #'           standardize = "TRUE")}
 #'
-#' res.1a <- mmi(fit.r = fit.r1, fit.x = fit.s1,
+#' res.1a <- mmi(fit.r = fit.r1, fit.x = fit.x1,
 #'           fit.y = fit.y1, sims = 40, conditional = FALSE,
-#'           covariates = c("C.num", "C.bin"), treat = "R")
+#'           covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res.1a
 #'
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' # Example 1-b: Binary Outcome
-#' #-----------------------------------------------------------#
-#' \donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#' #------------------------------------------------------------------------------#
+#' \donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
 #'           data = sdata, family = binomial(link = "logit"))
 #'
-#' res.1b <- mmi(fit.r = fit.r1, fit.x = fit.s1,
+#' res.1b <- mmi(fit.r = fit.r1, fit.x = fit.x1,
 #'           fit.y = fit.y2, sims = 40, conditional = FALSE,
-#'           covariates = c("C.num", "C.bin"), treat = "R")
+#'           covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res.1b}
 #' 
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' # Example 2-a: Continuous Outcome, Conditional on Covariates
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' \donttest{# For conditional = TRUE, need to create data with centered covariates
 #' # copy data
 #' sdata.c <- sdata
@@ -149,30 +154,34 @@
 #' fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata.c,
 #'           family = binomial(link = "logit"))
 #' fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata.c)
-#' fit.s2 <- lm(S ~ R + C.num + C.bin, data = sdata.c)
-#' fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#' fit.x2 <- lm(X ~ R + C.num + C.bin, data = sdata.c)
+#' fit.y1 <- lm(Y.num ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
 #'           data = sdata.c)
 #'
-#' res.2a <- mmi(fit.x = fit.s2,
+#' res.2a <- mmi(fit.x = fit.x2,
 #'           fit.y = fit.y1, sims = 40, conditional = TRUE,
-#'           covariates = c("C.num", "C.bin"), treat = "R")
+#'           covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res.2a}
 #' 
-#' #-----------------------------------------------------------#
+#' #------------------------------------------------------------------------------#
 #' # Example 2-b: Binary Outcome, Conditional on Covariates
-#' #-----------------------------------------------------------#
-#' \donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + S + C.num + C.bin,
+#' #------------------------------------------------------------------------------#
+#' \donttest{fit.y2 <- glm(Y.bin ~ R + M.num + M.bin + M.cat + X + C.num + C.bin,
 #'           data = sdata.c, family = binomial(link = "logit"))
 #'
-#' res.2b <- mmi(fit.x = fit.s2,
+#' res.2b <- mmi(fit.x = fit.x2,
 #'           fit.y = fit.y2, sims = 40, conditional = TRUE,
-#'           covariates = c("C.num", "C.bin"), treat = "R")
+#'           covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res.2b}
 mmi <- function(fit.r = NULL, fit.x, fit.y,
                 treat, covariates, sims = 100, conf.level = .95,
-                conditional = TRUE, cluster = NULL, long = FALSE,
-                mc.cores = 1L){
+                conditional = TRUE, cluster = NULL, long = TRUE,
+                mc.cores = 1L, seed = NULL){
 
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
   fit.m <- fit.x
 
   # Warning for inappropriate settings
@@ -203,8 +212,8 @@ mmi <- function(fit.r = NULL, fit.x, fit.y,
     stop("'mc.cores' must be >= 1")
   }
 
-  # Possibility of multiple mediators
-  if(length(class(fit.m)) == 1 && class(fit.m) == "list"){
+  # Possibility of multiple intermediate confounders
+  if(inherits(fit.m, "list")){
     isMultiConfounders <- TRUE
     num.ms <- length(fit.m)
   } else {
@@ -275,13 +284,57 @@ mmi <- function(fit.r = NULL, fit.x, fit.y,
   n.y <- nrow(y.data)
   if(is.null(n.r)){
     if(n.m != n.y){
-      stop("number of observations do not match between mediator and outcome models")
+      stop("number of observations do not match between mediator
+           and outcome models")
     }
   } else if (!is.null(n.r)){
     if(n.m != n.y | n.r != n.y | n.m != n.r){
-      stop("number of observations do not match between treatment, mediator and outcome models")
+      stop("number of observations do not match between treatment,
+           mediator and outcome models")
     }
   }
+  
+  # Model frames for M and Y models (ver 0.1.0)
+  if(isMultiConfounders){
+    m.data <- model.frame(fit.m[[1]])
+  } else {
+    m.data <- model.frame(fit.m)
+  }
+  y.data <- model.frame(fit.y)
+  
+  if(!is.null(cluster)){
+    row.names(m.data) <- 1:nrow(m.data)
+    row.names(y.data) <- 1:nrow(y.data)
+    
+    if(!is.null(fit.m$weights)){
+      m.weights <- as.data.frame(fit.m$weights)
+      m.name <- as.character(fit.m$call$weights)  
+      names(m.weights) <- m.name
+      m.data <- cbind(m.data, m.weights)
+    }
+    
+    if(!is.null(fit.y$weights)){
+      y.weights <- as.data.frame(fit.y$weights)
+      y.name <- as.character(fit.y$call$weights)  
+      names(y.weights) <- y.name
+      y.data <- cbind(y.data, y.weights)
+    }
+  }
+  
+  # Extracting weights from models (ver 0.1.0)
+  weights.m <- model.weights(m.data)
+  weights.y <- model.weights(y.data)
+  
+  if(!is.null(weights.m) && isGlm.m && FamilyM == "binomial"){
+    message("weights taken as sampling weights, not total number of trials")
+  }
+  if(is.null(weights.m)){
+    weights.m <- rep(1, nrow(m.data))
+  }
+  if(is.null(weights.y)){
+    weights.y <- rep(1, nrow(y.data))
+  }
+  weights <- weights.y
 
   # Extract treatment and outcome variable names from models
   if(!is.null(fit.r)){
@@ -309,7 +362,7 @@ mmi <- function(fit.r = NULL, fit.x, fit.y,
   all.out <- matrix(NA, 3 * (r - 1), sims)
   colnames(out) <- c("estimate", paste(conf.level * 100, "% CI Lower", sep = ""),
                      paste(conf.level * 100, "% CI Upper", sep = ""))
-  rn <- NULL
+  rn <- rn2 <- NULL
   for(rr in 2:r){
     rn <- c(rn, c(paste("Initial Disparity   (", levels(y.data[, treat])[1],
                         " vs ", levels(y.data[, treat])[rr], ")", sep = ""),
@@ -317,22 +370,31 @@ mmi <- function(fit.r = NULL, fit.x, fit.y,
                         " vs ", levels(y.data[, treat])[rr], ")", sep = ""),
                   paste("Disparity Reduction (", levels(y.data[, treat])[1],
                         " vs ", levels(y.data[, treat])[rr], ")", sep = "")))
-
+    rn2 <- c(rn2, levels(y.data[, treat])[rr])
   }
-  rownames(out) <- rownames(all.out) <- rn
-
-  summary0 <- mclapply(1:sims, combine.b, fit.r = fit.r, fit.s = NULL, fit.m = fit.m, fit.y = fit.y,
+  
+  summary0 <- mclapply(1:sims, combine.b, fit.r = fit.r, fit.x = NULL, fit.m = fit.m, fit.y = fit.y,
                        cluster = cluster, func = "mmi", mc.cores = mc.cores)
   out.full <- simplify2array(summary0)
-  out[, 1] <- combine(fit.r = fit.r, fit.s = NULL, fit.m = fit.m, fit.y = fit.y, func = "mmi")
-  out[, 2] <- apply(out.full, 1, quantile, prob = (1 - conf.level)/2, na.rm = TRUE)
-  out[, 3] <- apply(out.full, 1, quantile, prob = 1/2 + conf.level/2, na.rm = TRUE)
-  all.out <- out.full
+  ind.alphar <- seq(4, 5 * (r - 1), 5)
+  ind.segamma <- seq(5, 5 * (r - 1), 5)
+  ind.exclude <- c(ind.alphar, ind.segamma)
+  
+  out[, 1] <- combine(fit.r = fit.r, fit.x = NULL, fit.m = fit.m, fit.y = fit.y, func = "mmi", weights = weights)[- ind.exclude]
+  out[, 2] <- apply(out.full[- ind.exclude, ], 1, quantile, prob = (1 - conf.level)/2, na.rm = TRUE)
+  out[, 3] <- apply(out.full[- ind.exclude, ], 1, quantile, prob = 1/2 + conf.level/2, na.rm = TRUE)
+  all.out <- out.full[- ind.exclude, ]
+  rownames(out) <- rownames(all.out) <- rn
+  
+  alpha.r <- t(matrix(out.full[ind.alphar, ], ncol = sims))
+  se.gamma <- t(matrix(out.full[ind.segamma, ], ncol = sims))
+  colnames(alpha.r) <- colnames(se.gamma) <- rn2
 
   if(long){
     out <- list(result = out, all.result = all.out)
   } else {
     out <- list(result = out)
   }
+  class(out) <- "mmi"
   return(out)
 }

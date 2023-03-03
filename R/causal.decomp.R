@@ -1,7 +1,7 @@
 #' causal.decomp: Causal Decomposition Analysis.
 #' 
-#' The causal.decomp package provides three important functions:
-#' mmi, smi, and pocr.
+#' The causal.decomp package provides four important functions:
+#' mmi, smi, pocr, and sensitivity.
 #' 
 #' @docType package
 #' @name causal.decomp

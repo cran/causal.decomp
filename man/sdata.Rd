@@ -12,7 +12,7 @@ independent of each other.
 \item{C.num:}{ A quantitative covariate.}
 \item{C.bin:}{ A binary covariates with a value of 0 or 1.}
 \item{R:}{ A group indicator with four levels.}
-\item{S:}{ A quantitative intermediate confounder between a mediator and the outcome.}
+\item{X:}{ A quantitative intermediate confounder between a mediator and the outcome.}
 \item{M.num:}{ A quantitative mediator.}
 \item{M.bin:}{ A binary mediator with a value of 0 or 1.}
 \item{M.cat:}{ A categorical mediator with three levels.}
@@ -24,7 +24,7 @@ independent of each other.
 sdata
 }
 \description{
-A ranomly generated dataset containing 1000 rows and 9 columns with no
+A randomly generated dataset containing 1000 rows and 9 columns with no
 missing values.
 }
 \details{

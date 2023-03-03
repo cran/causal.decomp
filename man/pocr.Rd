@@ -4,18 +4,8 @@
 \alias{pocr}
 \title{Product-of-Coefficients-Regression Estimation Method}
 \usage{
-pocr(
-  fit.x = NULL,
-  fit.m,
-  fit.y,
-  treat,
-  covariates,
-  sims = 100,
-  conf.level = 0.95,
-  cluster = NULL,
-  long = FALSE,
-  mc.cores = 1L
-)
+pocr(fit.x = NULL, fit.m, fit.y, treat, covariates, sims = 100, conf.level = .95,
+     cluster = NULL, long = TRUE, mc.cores = 1L, seed = NULL)
 }
 \arguments{
 \item{fit.x}{a fitted model object for intermediate confounder. Can be of class 'lm'.
@@ -44,22 +34,24 @@ Default is to return the 2.5 and 97.5 percentiles of the simulated quantities.}
 the cluster bootstrap is used. Default is 'NULL'.}
 
 \item{long}{a logical value. If 'TRUE', the output will contain the entire
-sets of estimates for all bootsrap samples. Default is 'FALSE'.}
+sets of estimates for all bootstrap samples. Default is 'TRUE'.}
 
 \item{mc.cores}{The number of cores to use. Must be exactly 1 on Windows.}
+
+\item{seed}{seed number for the reproducibility of results. Default is `NULL'.}
 }
 \value{
 \item{result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction, and the percentile bootsrap
+disparity remaining, and disparity reduction, and the percentile bootstrap
 confidence intervals for each estimate.}
 \item{all.result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction for all bootsrap samples. Returned
+disparity remaining, and disparity reduction for all bootstrap samples. Returned
 if 'long' is 'TRUE'.}
 }
 \description{
 'pocr' is used to estimate the initial disparity, disparity reduction, and
 disparity remaining for causal decomposition analysis, using the
-product-of-coefficients-regression estimation method proposed by Park et. al. (2021+).
+product-of-coefficients-regression estimation method proposed by Park et al. (2021+).
 }
 \details{
 This function returns the point estimates of the initial disparity,
@@ -75,7 +67,7 @@ suggested by Park et al. (2021+). It always make the inference
 conditional on baseline covariates. Therefore, users need to center the data
 before fitting the models. See the reference for more details.
 
-As of version 0.0.1, the mediator model ('fit.m') can be of class 'lm', 'glm',
+As of version 0.1.0, the mediator model ('fit.m') can be of class 'lm', 'glm',
 'multinom', or 'polr', corresponding respectively to the linear regression
 models and generalized linear models, multinomial log-linear models, and
 ordered response models. The outcome model ('fit.y') can be of class 'lm'.
@@ -94,52 +86,52 @@ sdata.c$C.num <- scale(sdata.c$C.num, center = TRUE, scale = FALSE)
 # only neccessary if the desired baseline level is NOT the default baseline level.
 sdata.c$C.bin <- relevel(sdata.c$C.bin, ref = "1")
 
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 # Example 1: Continuous Mediator
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata.c)
-fit.y1 <- lm(Y.num ~ R + M.num + M.num:R + S +
+fit.y1 <- lm(Y.num ~ R + M.num + M.num:R + X +
           C.num + C.bin, data = sdata.c)
 res1 <- pocr(fit.m = fit.m1, fit.y = fit.y1, sims = 40,
-        covariates = c("C.num", "C.bin"), treat = "R")
+        covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res1
 
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 # Example 2: Binary Mediator
-#--------------------------------------------------------------#
-\donttest{fit.s1 <- lm(S ~ R + C.num + C.bin, data = sdata.c)
+#---------------------------------------------------------------------------------#
+\donttest{fit.x1 <- lm(X ~ R + C.num + C.bin, data = sdata.c)
 fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata.c,
           family = binomial(link = "logit"))
-fit.y2 <- lm(Y.num ~ R + M.bin + M.bin:R + S +
+fit.y2 <- lm(Y.num ~ R + M.bin + M.bin:R + X +
           C.num + C.bin, data = sdata.c)
-res2 <- pocr(fit.x = fit.s1, fit.m = fit.m2, fit.y = fit.y2,
-        sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+res2 <- pocr(fit.x = fit.x1, fit.m = fit.m2, fit.y = fit.y2,
+        sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res2}
 
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 # Example 3: Ordinal Mediator
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 \donttest{require(MASS)
 fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata.c)
-fit.y3 <- lm(Y.num ~ R + M.cat + M.cat:R + S +
+fit.y3 <- lm(Y.num ~ R + M.cat + M.cat:R + X +
 	C.num + C.bin, data = sdata.c)
-res3 <- pocr(fit.x = fit.s1, fit.m = fit.m3, fit.y = fit.y3,
-       sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+res3 <- pocr(fit.x = fit.x1, fit.m = fit.m3, fit.y = fit.y3,
+       sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res3}
 
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 # Example 4: Nominal Mediator
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 \donttest{require(nnet)
 fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata.c)
-res4 <- pocr(fit.x = fit.s1, fit.m = fit.m4, fit.y = fit.y3,
-        sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+res4 <- pocr(fit.x = fit.x1, fit.m = fit.m4, fit.y = fit.y3,
+        sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res4}
 }
 \references{
-Park, S., Kang, S., and Lee, C. (2021+). "Choosing an Optimal Method for Causal
-Decomposition Analysis: A Better Practice for Identifying Contributing Factors to
-Health Disparities".
+Park, S., Kang, S., and Lee, C. (2021+). "Choosing an optimal method for causal
+decomposition analysis: A better practice for identifying contributing factors to
+health disparities". arXiv preprint arXiv:2109.06940.
 }
 \seealso{
 \code{\link{mmi}}, \code{\link{smi}}

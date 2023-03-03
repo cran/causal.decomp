@@ -1,11 +1,22 @@
 # A function used in 'mmi' and 'smi' for comparing a pair of sel.lev.R vs ref.lev.treat
-select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, func){
+select.treat.pocr <- function(fit.x, fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, func){
   
   #:::::::::::::::::::::::::::#
   # Predict mediator::::::::::#
   #:::::::::::::::::::::::::::#
   y.data.new <- y.data
   y.data.new[, treat] <- levels(y.data[, treat])[sel.lev.treat]
+  
+  # version 0.1.0 -> change!!!!
+  #y.data.updated <- y.data
+  #y.data.updated[, treat] <- relevel(y.data.updated[, treat], ref = sel.lev.treat)
+  #fit.y.updated <- update(fit.y, data = y.data.updated) ### correct?
+  #meds <- all.vars(formula(fit.m))[[1]]
+  #if(isGlm.m){
+  #  meds <- which(meds == substring(colnames(vcov(fit.y.updated)), 1, nchar(meds)))[1]
+  #}
+  #var_gamma <- vcov(fit.y.updated)[meds, meds]
+  #se_gamma <- sqrt(var_gamma)
   
   # Compute predicted values of mediator
   
@@ -69,7 +80,7 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
       
       # alpha1, alpha0
       if(LinkM == "logit"){
-        alpha1 <- plogis(coef(mod.m.ref)[1]) - plogis(coef(mod.m.sel)[1])
+        alpha1 <- -(plogis(coef(mod.m.ref)[1]) - plogis(coef(mod.m.sel)[1]))
         alpha0 <- plogis(coef(mod.m.sel)[1])
       } else if(LinkM == "probit") {
         alpha1 <- pnorm(coef(mod.m.ref)[1]) - pnorm(coef(mod.m.sel)[1])
@@ -81,7 +92,9 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
       
       # beta1, beta2, beta3, beta4
       name.beta1 <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
-      name.beta2 <- S
+      name.beta2 <- X
+      #name.X1 <- X1
+      #name.X2 <- X2
       name.beta3 <- paste(M, levels(y.data[, M])[2], sep = "")
       name.beta41 <- paste(paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = ""),
                            paste(M, levels(y.data[, M])[2], sep = ""), sep = ":")
@@ -90,23 +103,32 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
       
       ind.beta1 <- which(names(coef(fit.y)) == name.beta1)
       ind.beta2 <- which(names(coef(fit.y)) == name.beta2)
+      #ind.X1 <- which(names(coef(fit.y)) == name.X1)
+      #ind.X2 <- which(names(coef(fit.y)) == name.X2)
       ind.beta3 <- which(names(coef(fit.y)) == name.beta3)
       ind.beta4 <- which(names(coef(fit.y)) == name.beta41 | names(coef(fit.y)) == name.beta42)
       
       beta1 <- coef(fit.y)[ind.beta1]
       beta2 <- coef(fit.y)[ind.beta2]
+      #coef.X1 <- coef(fit.y)[ind.X1]
+      #coef.X2 <- coef(fit.y)[ind.X2]
       beta3 <- coef(fit.y)[ind.beta3]
       beta4 <- coef(fit.y)[ind.beta4]
       
       # gamma1
       name.gamma1 <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
-      ind.gamma1 <- which(names(coef(fit.s)) == name.gamma1)
-      gamma1 <- coef(fit.s)[ind.gamma1]
+      ind.gamma1 <- which(names(coef(fit.x)) == name.gamma1)
+      gamma1 <- coef(fit.x)[ind.gamma1]
+      #ind.gamma1.X1 <- which(names(coef(fit.x1)) == name.gamma1)
+      #gamma1.X1 <- coef(fit.x1)[ind.gamma1.X1]
+      #ind.gamma1.X2 <- which(names(coef(fit.X2)) == name.gamma1)
+      #gamma1.X2 <- coef(fit.x2)[ind.gamma1.X2]
       
       # disparity reduction
       disp.red <- alpha1 * (beta3 + beta4)
       # disparity remaining for a binary mediator
       disp.rem <- beta1 + beta2 * gamma1 + beta4 * alpha0
+      #disp.rem <- beta1 + coef.X1 * gamma1.X1 + coef.X2 * gamma1.X2 + beta4 * alpha0
       
     } else {
       stop("unsupported glm family")
@@ -188,8 +210,8 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
     # gamma1
     name.R <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
     ind.R <- which(names(coef(fit.y)) == name.R)
-    ind.S <- which(names(coef(fit.y)) == S)
-    ind.R.in.S <- which(names(coef(fit.s)) == name.R)
+    ind.X <- which(names(coef(fit.y)) == X)
+    ind.R.in.X <- which(names(coef(fit.x)) == name.R)
     
     disp.red <- disp.rem <- rep(NA, m)
     for(mm in 2:m){
@@ -201,7 +223,7 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
       
       # beta1, beta2, beta4
       name.beta1 <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
-      name.beta2 <- S
+      name.beta2 <- X
       name.beta41 <- paste(paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = ""),
                            paste(M, levels(y.data[, M])[2], sep = ""), sep = ":")
       name.beta42 <- paste(paste(M, levels(y.data[, M])[2], sep = ""),
@@ -220,7 +242,7 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
     }
     
     disp.red <- sum(disp.red, na.rm = TRUE)
-    disp.rem <- coef(fit.y)[ind.R] + coef(fit.y)[ind.S] * coef(fit.s)[ind.R.in.S] + sum(disp.rem, na.rm = TRUE)
+    disp.rem <- coef(fit.y)[ind.R] + coef(fit.y)[ind.X] * coef(fit.x)[ind.R.in.X] + sum(disp.rem, na.rm = TRUE)
     
   } else {
     stop("mediator model is not yet implemented")
@@ -230,10 +252,16 @@ select.treat.pocr <- function(fit.s, fit.m, fit.y, sel.lev.treat, ref.lev.treat 
   #:Results:::::::#
   #:::::::::::::::#
   # Initial disparity, Disparity remaining, and Disparity reduction in order
-  out <- rep(NA, 3)
+  out <- rep(NA, 5)
   out[2] <- disp.rem
   out[3] <- disp.red
   out[1] <- out[2] + out[3]
+  
+  # version 0.1.0
+  #name.R.in.M <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
+  #ind.R.in.M <- which(names(coef(fit.m)) == name.R.in.M)
+  out[4] <- 0 #as.numeric(coef(fit.m)[ind.R.in.M])
+  out[5] <- 0 #se_gamma
   
   return(out)
 }

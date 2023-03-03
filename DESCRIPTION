@@ -1,7 +1,7 @@
 Package: causal.decomp
 Title: Causal Decomposition Analysis
-Version: 0.0.1
-Date: 2021-9-7
+Version: 0.1.0
+Date: 2023-3-2
 Authors@R: c(person("Suyeon", "Kang", role = c("aut", "cre"),
                       email = "skang062@ucr.edu"),
                       person("Soojin", "Park", role = "aut",
@@ -9,15 +9,17 @@ Authors@R: c(person("Suyeon", "Kang", role = c("aut", "cre"),
 Depends: R (>= 2.10)
 Imports: stats, parallel, MASS, nnet, SuppDists, CBPS, PSweight,
         spelling, utils
-Description: We implement causal decomposition analysis using the methods proposed by Park, Lee, and Qin (2020) <arXiv:2008.12812> and Park, Kang, and Lee (2021+). This package allows researchers to use the multiple-mediator-imputation, single-mediator-imputation, and product-of-coefficients regression methods to estimate the initial disparity, disparity reduction, and disparity remaining. It also allows to make the inference conditional on baseline covariates. 
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+Description: We implement causal decomposition analysis using the methods proposed by Park, Lee, and Qin (2020) and Park, Kang, and Lee (2021+) <arXiv:2109.06940>. This package allows researchers to use the multiple-mediator-imputation, single-mediator-imputation, and product-of-coefficients regression methods to estimate the initial disparity, disparity reduction, and disparity remaining. It also allows to make the inference conditional on baseline covariates. We also implement sensitivity analysis for the causal decomposition analysis using R-squared values as sensitivity parameters (Park, Kang, Lee, and Ma, 2023).
 License: GPL-2
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.3
 LazyData: true
 NeedsCompilation: no
-Packaged: 2021-09-11 05:14:28 UTC; Suyeon Kang
+Packaged: 2023-03-03 22:41:47 UTC; suyeon.kang
 Author: Suyeon Kang [aut, cre],
   Soojin Park [aut]
 Maintainer: Suyeon Kang <skang062@ucr.edu>
 Repository: CRAN
-Date/Publication: 2021-09-13 11:40:02 UTC
+Date/Publication: 2023-03-03 22:50:12 UTC

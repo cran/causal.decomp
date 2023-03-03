@@ -1,24 +1,31 @@
 # Bootstrappting with 'combine' function
-combine.b <- function(X, fit.r, fit.s, fit.m, fit.y, cluster = NULL, func){
-  
+combine.b <- function(XX, fit.r, fit.x, fit.m, fit.y, cluster = NULL, func){
+
   if(is.null(cluster)){
     # sample the observations with replacement
     sb <- sample(1:nrow(y.data), n.y, replace = TRUE)
-    # create bootstap sample
-    y.data.b <- y.data[sb, ]
   } else {
     clusters <- unique(cluster)
     # sample the clusters with replacement
     units <- sample(clusters, size = length(clusters), replace = TRUE)
-    # create bootstap sample with sapply
+    # create bootstrap sample with sapply
     df.bs <- sapply(units, function(x) which(cluster == x))
-    y.data.b <- y.data[unlist(df.bs), ]
+    sb <- unlist(df.bs)
   }
-  
-  fit.y.b <- update(fit.y, data = y.data.b)
+  # create bootstrap sample
+  y.data <- model.frame(fit.y)
+  y.data.b <- y.data[sb, ]
+  if(!"(weights)" %in% colnames(y.data.b)){  # version 0.1.0
+    y.data.b <- cbind(y.data.b, weights[sb])
+    colnames(y.data.b)[ncol(y.data.b)] <- "(weights)"
+  }
+
+  #assign("y.data.b", y.data.b, envir = .GlobalEnv)
+  #assign("weights.b", weights.b, envir = .GlobalEnv)
+  fit.y.b <- update(fit.y, data = y.data.b, weights = y.data.b[, "(weights)"])
   
   if(!is.null(fit.r) && isCBPS.r){
-    fit.r.b <- update(fit.r, data = y.data.b)
+    fit.r.b <- update(fit.r, data = y.data.b, sample.weights = y.data.b[, "(weights)"])##
   } else if(!is.null(fit.r) && isSumStat.r){
     ps.xvar <- rownames(fit.r$unweighted.sumstat)
     for(name in 1:length(ps.xvar)){
@@ -33,15 +40,17 @@ combine.b <- function(X, fit.r, fit.s, fit.m, fit.y, cluster = NULL, func){
     fit.r.b <- NULL
   }
   
-  if(!is.null(fit.s)){
-    fit.s.b <- update(fit.s, data = y.data.b)
+  if(!is.null(fit.x)){
+    fit.x.b <- update(fit.x, data = y.data.b, weights = y.data.b[, "(weights)"])
+  #  fit.x1.b <- update(fit.x1, data = y.data.b)
+  #  fit.x2.b <- update(fit.x2, data = y.data.b)
   } else {
-    fit.s.b <- NULL
+    fit.x.b <- NULL
   }
   
   if(!isMultiConfounders){
     if(isNominal.m){
-      fit.m.b <- update(fit.m, data = y.data.b, trace = FALSE)
+      fit.m.b <- update(fit.m, data = y.data.b, trace = FALSE, weights = y.data.b[, "(weights)"])
     } else {
       fit.m.b <- update(fit.m, data = y.data.b)
     }
@@ -49,13 +58,15 @@ combine.b <- function(X, fit.r, fit.s, fit.m, fit.y, cluster = NULL, func){
     fit.m.b <- list()
     for(i in 1:length(fit.m)){
       if(isNominal.m[i]){
-        fit.m.b[[i]] <- update(fit.m[[i]], data = y.data.b, trace = FALSE)
+        fit.m.b[[i]] <- update(fit.m[[i]], data = y.data.b, trace = FALSE, weights = y.data.b[, "(weights)"])
       } else {
-        fit.m.b[[i]] <- update(fit.m[[i]], data = y.data.b)
+        fit.m.b[[i]] <- update(fit.m[[i]], data = y.data.b)#, weights = NULL)
       }
     }
   }
   
-  out <- combine(fit.r = fit.r.b, fit.s = fit.s.b, fit.m = fit.m.b, fit.y = fit.y.b, func = func)
+  environment(combine) <- environment()
+  out <- combine(fit.r = fit.r.b, fit.x = fit.x.b, fit.m = fit.m.b, fit.y = fit.y.b, func = func,
+                 weights = y.data.b[, "(weights)"])
   return(out)
 }

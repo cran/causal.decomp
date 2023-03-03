@@ -2,7 +2,11 @@
 #'
 #' 'pocr' is used to estimate the initial disparity, disparity reduction, and
 #' disparity remaining for causal decomposition analysis, using the
-#' product-of-coefficients-regression estimation method proposed by Park et. al. (2021+).
+#' product-of-coefficients-regression estimation method proposed by Park et al. (2021+).
+#' 
+#' @usage 
+#' pocr(fit.x = NULL, fit.m, fit.y, treat, covariates, sims = 100, conf.level = .95,
+#'      cluster = NULL, long = TRUE, mc.cores = 1L, seed = NULL)
 #'
 #' @details This function returns the point estimates of the initial disparity,
 #'   disparity reduction, and disparity remaining for a categorical
@@ -17,7 +21,7 @@
 #'   conditional on baseline covariates. Therefore, users need to center the data
 #'   before fitting the models. See the reference for more details.
 #'
-#'   As of version 0.0.1, the mediator model ('fit.m') can be of class 'lm', 'glm',
+#'   As of version 0.1.0, the mediator model ('fit.m') can be of class 'lm', 'glm',
 #'   'multinom', or 'polr', corresponding respectively to the linear regression
 #'   models and generalized linear models, multinomial log-linear models, and
 #'   ordered response models. The outcome model ('fit.y') can be of class 'lm'.
@@ -42,16 +46,17 @@
 #' @param cluster a vector of cluster indicators for the bootstrap. If provided,
 #'   the cluster bootstrap is used. Default is 'NULL'.
 #' @param long a logical value. If 'TRUE', the output will contain the entire
-#'   sets of estimates for all bootsrap samples. Default is 'FALSE'.
+#'   sets of estimates for all bootstrap samples. Default is 'TRUE'.
 #' @param mc.cores The number of cores to use. Must be exactly 1 on Windows.
+#' @param seed seed number for the reproducibility of results. Default is `NULL'.
 #'
 #' @return
 #'
 #'   \item{result}{a matrix containing the point estimates of the initial disparity,
-#'   disparity remaining, and disparity reduction, and the percentile bootsrap
+#'   disparity remaining, and disparity reduction, and the percentile bootstrap
 #'   confidence intervals for each estimate.}
 #'   \item{all.result}{a matrix containing the point estimates of the initial disparity,
-#'   disparity remaining, and disparity reduction for all bootsrap samples. Returned
+#'   disparity remaining, and disparity reduction for all bootstrap samples. Returned
 #'   if 'long' is 'TRUE'.}
 #'
 #' @author
@@ -61,9 +66,9 @@
 #' @seealso \code{\link{mmi}}, \code{\link{smi}}
 #'
 #' @references
-#'   Park, S., Kang, S., and Lee, C. (2021+). "Choosing an Optimal Method for Causal
-#'   Decomposition Analysis: A Better Practice for Identifying Contributing Factors to
-#'   Health Disparities".
+#'   Park, S., Kang, S., and Lee, C. (2021+). "Choosing an optimal method for causal
+#'   decomposition analysis: A better practice for identifying contributing factors to
+#'   health disparities". arXiv preprint arXiv:2109.06940.
 #'
 #' @export
 #' @examples
@@ -78,56 +83,60 @@
 #' # only neccessary if the desired baseline level is NOT the default baseline level.
 #' sdata.c$C.bin <- relevel(sdata.c$C.bin, ref = "1")
 #'
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' # Example 1: Continuous Mediator
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata.c)
-#' fit.y1 <- lm(Y.num ~ R + M.num + M.num:R + S +
+#' fit.y1 <- lm(Y.num ~ R + M.num + M.num:R + X +
 #'           C.num + C.bin, data = sdata.c)
 #' res1 <- pocr(fit.m = fit.m1, fit.y = fit.y1, sims = 40,
-#'         covariates = c("C.num", "C.bin"), treat = "R")
+#'         covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res1
 #'
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' # Example 2: Binary Mediator
-#' #--------------------------------------------------------------#
-#' \donttest{fit.s1 <- lm(S ~ R + C.num + C.bin, data = sdata.c)
+#' #---------------------------------------------------------------------------------#
+#' \donttest{fit.x1 <- lm(X ~ R + C.num + C.bin, data = sdata.c)
 #' fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata.c,
 #'           family = binomial(link = "logit"))
-#' fit.y2 <- lm(Y.num ~ R + M.bin + M.bin:R + S +
+#' fit.y2 <- lm(Y.num ~ R + M.bin + M.bin:R + X +
 #'           C.num + C.bin, data = sdata.c)
-#' res2 <- pocr(fit.x = fit.s1, fit.m = fit.m2, fit.y = fit.y2,
-#'         sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+#' res2 <- pocr(fit.x = fit.x1, fit.m = fit.m2, fit.y = fit.y2,
+#'         sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res2}
 #'
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' # Example 3: Ordinal Mediator
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' \donttest{require(MASS)
 #' fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata.c)
-#' fit.y3 <- lm(Y.num ~ R + M.cat + M.cat:R + S +
+#' fit.y3 <- lm(Y.num ~ R + M.cat + M.cat:R + X +
 #' 	C.num + C.bin, data = sdata.c)
-#' res3 <- pocr(fit.x = fit.s1, fit.m = fit.m3, fit.y = fit.y3,
-#'        sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+#' res3 <- pocr(fit.x = fit.x1, fit.m = fit.m3, fit.y = fit.y3,
+#'        sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res3}
 #'
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' # Example 4: Nominal Mediator
-#' #--------------------------------------------------------------#
+#' #---------------------------------------------------------------------------------#
 #' \donttest{require(nnet)
 #' fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata.c)
-#' res4 <- pocr(fit.x = fit.s1, fit.m = fit.m4, fit.y = fit.y3,
-#'         sims = 40, covariates = c("C.num", "C.bin"), treat = "R")
+#' res4 <- pocr(fit.x = fit.x1, fit.m = fit.m4, fit.y = fit.y3,
+#'         sims = 40, covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 #' res4}
 pocr <- function(fit.x = NULL, fit.m, fit.y,
                  treat, covariates, sims = 100, conf.level = .95,
-                 cluster = NULL, long = FALSE,
-                 mc.cores = 1L){
+                 cluster = NULL, long = TRUE,
+                 mc.cores = 1L, seed = NULL){
 
-  fit.s <- fit.x
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
+  fit.x <- fit.x
 
   # Warning for inappropriate settings
-  if(length(class(fit.m)) == 1 && class(fit.m) == "list"){
+  if(inherits(fit.m, "list")){
     stop("There must be only one mediator model")
   }
 
@@ -153,7 +162,7 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
   isMultiConfounders <- FALSE
 
   # Model type indicators
-  isLm.s <- inherits(fit.s, "lm")
+  isLm.x <- inherits(fit.x, "lm") #fit.s[[1]]
   isLm.y <- inherits(fit.y, "lm")
 
   isGlm.m <- inherits(fit.m, "glm")
@@ -195,9 +204,11 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
                    loglog = pgumbel, cloglog = pGumbel, cauchit = pcauchy)
   }
 
-  if(!is.null(fit.s) && !isLm.s){
-    stop("unsupported  model")
+  if(!is.null(fit.x) && !isLm.x){
+    stop("unsupported model")
   }
+  #fit.x1 <- fit.x[[1]]
+  #fit.x2 <- fit.x[[2]]
 
   if(!isLm.y){
     stop("unsupported outcome model")
@@ -208,47 +219,85 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
   }
 
   # Numbers of observations and model frame
-  if(!is.null(fit.s) && isLm.s){
-    n.s <- nrow(model.frame(fit.s))
+  if(!is.null(fit.x) && isLm.x){
+    n.x <- nrow(model.frame(fit.x))
   } else {
-    n.s <- NULL
+    n.x <- NULL
   }
   n.m <- nrow(model.frame(fit.m))
   y.data <- model.frame(fit.y)
   n.y <- nrow(y.data)
-  if(is.null(n.s)){
+  if(is.null(n.x)){
     if(n.m != n.y){
       stop("number of observations do not match between mediator
            and outcome models")
     }
-  } else if (!is.null(n.s)){
-    if(n.m != n.y | n.s != n.y | n.m != n.s){
+  } else if (!is.null(n.x)){
+    if(n.m != n.y | n.x != n.y | n.m != n.x){
       stop("number of observations do not match between intermediate confounder,
            mediator and outcome models")
     }
   }
 
   if(isGlm.m){
-    if(FamilyM == "binomial" & is.null(fit.s)){
-      stop("'fit.s' must be specified for a binary mediator")
-    } else if(FamilyM != "binomial" & !is.null(fit.s)){
-      fit.s <- NULL
-      message("'fit.s' must be NULL for a quantitative mediator. fit.s = NULL forced")
+    if(FamilyM == "binomial" & is.null(fit.x)){
+      stop("'fit.x' must be specified for a binary mediator")
+    } else if(FamilyM != "binomial" & !is.null(fit.x)){
+      fit.x <- NULL
+      message("'fit.x' must be NULL for a quantitative mediator. fit.x = NULL forced")
     }
   } else if (isLm.m & !isGlm.m){
-    if(!is.null(fit.s)){
-      fit.s <- NULL
-      message("'fit.s' must be NULL for a quantitative mediator. fit.s = NULL forced")
+    if(!is.null(fit.x)){
+      fit.x <- NULL
+      message("'fit.x' must be NULL for a quantitative mediator. fit.x = NULL forced")
     }
-  } else if (isNominal.m & is.null(fit.s)){
-    stop("'fit.s' must be specified for a categorical mediator")
-  } else if (isOrdinal.m & is.null(fit.s)){
-    stop("'fit.s' must be specified for a categorical mediator")
+  } else if (isNominal.m & is.null(fit.x)){
+    stop("'fit.x' must be specified for a categorical mediator")
+  } else if (isOrdinal.m & is.null(fit.x)){
+    stop("'fit.x' must be specified for a categorical mediator")
   }
+  
+  # Model frames for M and Y models (ver 0.1.0)
+  m.data <- model.frame(fit.m)
+  y.data <- model.frame(fit.y)
+  
+  if(!is.null(cluster)){
+    row.names(m.data) <- 1:nrow(m.data)
+    row.names(y.data) <- 1:nrow(y.data)
+    
+    if(!is.null(fit.m$weights)){
+      m.weights <- as.data.frame(fit.m$weights)
+      m.name <- as.character(fit.m$call$weights)  
+      names(m.weights) <- m.name
+      m.data <- cbind(m.data, m.weights)
+    }
+    
+    if(!is.null(fit.y$weights)){
+      y.weights <- as.data.frame(fit.y$weights)
+      y.name <- as.character(fit.y$call$weights)  
+      names(y.weights) <- y.name
+      y.data <- cbind(y.data, y.weights)
+    }
+  }
+  
+  # Extracting weights from models (ver 0.1.0)
+  weights.m <- model.weights(m.data)
+  weights.y <- model.weights(y.data)
+  
+  if(!is.null(weights.m) && isGlm.m && FamilyM == "binomial"){
+    message("weights taken as sampling weights, not total number of trials")
+  }
+  if(is.null(weights.m)){
+    weights.m <- rep(1, nrow(m.data))
+  }
+  if(is.null(weights.y)){
+    weights.y <- rep(1, nrow(y.data))
+  }
+  weights <- weights.y
 
   # Extract treatment and outcome variable names from models
-  if(!is.null(fit.s)){
-    S <- all.vars(formula(fit.s))[[1]]
+  if(!is.null(fit.x)){
+    X <- all.vars(formula(fit.x))[[1]]
   }
   M <- all.vars(formula(fit.m))[[1]]
   r <- length(levels(y.data[, treat]))
@@ -259,12 +308,12 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
     if(!(names[nn] %in% attr(terms(fit.m),"term.labels"))){
       stop(paste(names[nn] , " must be in 'fit.m'", sep = ""))
     }
-    if (!is.null(fit.s) && !(names[nn] %in% attr(terms(fit.s),"term.labels"))){
-      stop(paste(names[nn] , " must be in 'fit.s'", sep = ""))
+    if (!is.null(fit.x) && !(names[nn] %in% attr(terms(fit.x),"term.labels"))){
+      stop(paste(names[nn] , " must be in 'fit.x'", sep = ""))
     }
   }
-  if(!is.null(fit.s)){
-    names <- c(treat, covariates, M, S)
+  if(!is.null(fit.x)){
+    names <- c(treat, covariates, M, X)
   } else {
     names <- c(treat, covariates, M)
   }
@@ -288,7 +337,7 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
   all.out <- matrix(NA, 3 * (r - 1), sims)
   colnames(out) <- c("estimate", paste(conf.level * 100, "% CI Lower", sep = ""),
                      paste(conf.level * 100, "% CI Upper", sep = ""))
-  rn <- NULL
+  rn <- rn2 <- NULL
   for(rr in 2:r){
     rn <- c(rn, c(paste("Initial Disparity   (", levels(y.data[, treat])[1],
                         " vs ", levels(y.data[, treat])[rr], ")", sep = ""),
@@ -296,23 +345,32 @@ pocr <- function(fit.x = NULL, fit.m, fit.y,
                         " vs ", levels(y.data[, treat])[rr], ")", sep = ""),
                   paste("Disparity Reduction (", levels(y.data[, treat])[1],
                         " vs ", levels(y.data[, treat])[rr], ")", sep = "")))
-
+    rn2 <- c(rn2, levels(y.data[, treat])[rr])
   }
-  rownames(out) <- rownames(all.out) <- rn
 
-  summary0 <- mclapply(1:sims, combine.b, fit.r = NULL, fit.s = fit.s, fit.m = fit.m, fit.y = fit.y,
+  summary0 <- mclapply(1:sims, combine.b, fit.r = NULL, fit.x = fit.x, fit.m = fit.m, fit.y = fit.y,
                        cluster = cluster, func = "pocr", mc.cores = mc.cores)
   out.full <- simplify2array(summary0)
-  out[, 1] <- combine(fit.r = NULL, fit.s = fit.s, fit.m = fit.m, fit.y = fit.y, func = "pocr")
-  out[, 2] <- apply(out.full, 1, quantile, prob = (1 - conf.level)/2, na.rm = TRUE)
-  out[, 3] <- apply(out.full, 1, quantile, prob = 1/2 + conf.level/2, na.rm = TRUE)
-  all.out <- out.full
-
+  ind.alphar <- seq(4, 5 * (r - 1), 5)
+  ind.segamma <- seq(5, 5 * (r - 1), 5)
+  ind.exclude <- c(ind.alphar, ind.segamma)
+  
+  out[, 1] <- combine(fit.r = NULL, fit.x = fit.x, fit.m = fit.m, fit.y = fit.y, func = "pocr", weights = weights)[- ind.exclude]
+  out[, 2] <- apply(out.full[- ind.exclude, ], 1, quantile, prob = (1 - conf.level)/2, na.rm = TRUE)
+  out[, 3] <- apply(out.full[- ind.exclude, ], 1, quantile, prob = 1/2 + conf.level/2, na.rm = TRUE)
+  all.out <- out.full[- ind.exclude, ]
+  rownames(out) <- rownames(all.out) <- rn
+  
+  alpha.r <- t(matrix(out.full[ind.alphar, ], ncol = sims))
+  se.gamma <- t(matrix(out.full[ind.segamma, ], ncol = sims))
+  colnames(alpha.r) <- colnames(se.gamma) <- rn2
+  
   if(long){
     out <- list(result = out, all.result = all.out)
   } else {
     out <- list(result = out)
   }
+  class(out) <- "pocr"
   return(out)
 
 }

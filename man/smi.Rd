@@ -4,19 +4,8 @@
 \alias{smi}
 \title{Single-Mediator-Imputation Estimation Method}
 \usage{
-smi(
-  fit.r = NULL,
-  fit.m,
-  fit.y,
-  treat,
-  covariates,
-  sims = 100,
-  conf.level = 0.95,
-  conditional = TRUE,
-  cluster = NULL,
-  long = FALSE,
-  mc.cores = 1L
-)
+smi(fit.r = NULL, fit.m, fit.y, treat, covariates, sims = 100, conf.level = .95,
+    conditional = TRUE, cluster = NULL, long = TRUE, mc.cores = 1L, seed = NULL)
 }
 \arguments{
 \item{fit.r}{a fitted model object for treatment. Can be of class 'CBPS' or
@@ -51,22 +40,30 @@ Default is 'TRUE'. If 'FALSE', 'fit.r' needs to be specified.}
 the cluster bootstrap is used. Default is 'NULL'.}
 
 \item{long}{a logical value. If 'TRUE', the output will contain the entire
-sets of estimates for all bootsrap samples. Default is 'FALSE'.}
+sets of estimates for all bootstrap samples. Default is 'TRUE'.}
 
 \item{mc.cores}{The number of cores to use. Must be exactly 1 on Windows.}
+
+\item{seed}{seed number for the reproducibility of results. Default is `NULL'.}
 }
 \value{
 \item{result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction, and the percentile bootsrap
+disparity remaining, and disparity reduction, and the percentile bootstrap
 confidence intervals for each estimate.}
 \item{all.result}{a matrix containing the point estimates of the initial disparity,
-disparity remaining, and disparity reduction for all bootsrap samples. Returned
+disparity remaining, and disparity reduction for all bootstrap samples. Returned
 if 'long' is 'TRUE'.}
+\item{alpha.r}{a vector containing the estimates of the regression coefficient of
+the treatment in the mediator. Not needed unless sensitivity analysis is
+conducted afterwards.}
+\item{se.gamma}{a vector containing the estimates of standard error of the
+egression coefficient of the mediator in the outcome model. Not needed unless
+sensitivity analysis is conducted afterwards.}
 }
 \description{
 'smi' is used to estimate the initial disparity, disparity reduction, and
 disparity remaining for causal decomposition analysis, using the
-single-mediator-imputation estimation method proposed by Park et. al. (2021+).
+single-mediator-imputation estimation method proposed by Park et al. (2021+).
 }
 \details{
 This function returns the point estimates of the initial disparity,
@@ -81,21 +78,21 @@ function, this function uses the single-mediator-imputation method
 suggested by Park et al. (2021+). See the reference for more details.
 
 If one wants to make the inference conditional on baseline covariates,
-set 'conditional = T' and center the data before fitting the models.
+set 'conditional = TRUE' and center the data before fitting the models.
 
-As of version 0.0.1, the mediator model ('fit.m') can be of class 'lm', 'glm',
+As of version 0.1.0, the mediator model ('fit.m') can be of class 'lm', 'glm',
 'multinom', or 'polr', corresponding respectively to the linear regression
 models and generalized linear models, multinomial log-linear models, and
 ordered response models. The outcome model ('fit.y') can be of class 'lm' or 'glm'.
 Also, the treatment model ('fit.r') can be of class 'CBPS' or 'SumStat', both of
-which use the propensity score weighting. It is only necessary when 'conditional = F'.
+which use the propensity score weighting. It is only necessary when 'conditional = FALSE'.
 }
 \examples{
 data(sdata)
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 1-a: Continuous Outcome
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 require(PSweight)
 fit.r1 <- SumStat(R ~ C.num + C.bin, data = sdata, weight = "IPW")
 \donttest{require(CBPS)
@@ -104,72 +101,72 @@ fit.r2 <- CBPS(R ~ C.num + C.bin, data = sdata, method = "exact",
 
 # Continuous mediator
 fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata)
-fit.y1 <- lm(Y.num ~ R + M.num + S + C.num + C.bin, data = sdata)
+fit.y1 <- lm(Y.num ~ R + M.num + X + C.num + C.bin, data = sdata)
 res.1a1 <- smi(fit.r = fit.r1, fit.m = fit.m1,
           fit.y = fit.y1, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 32)
 res.1a1
 
 \donttest{# Binary mediator
 fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata,
           family = binomial(link = "logit"))
-fit.y2 <- lm(Y.num ~ R + M.bin + S + C.num + C.bin, data = sdata)
+fit.y2 <- lm(Y.num ~ R + M.bin + X + C.num + C.bin, data = sdata)
 res.1a2 <- smi(fit.r = fit.r1, fit.m = fit.m2,
           fit.y = fit.y2, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1a2
 
 # Categorical mediator
 require(MASS)
 fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata)
-fit.y3 <- lm(Y.num ~ R + M.cat + S + C.num + C.bin, data = sdata)
+fit.y3 <- lm(Y.num ~ R + M.cat + X + C.num + C.bin, data = sdata)
 res.1a3 <- smi(fit.r = fit.r1, fit.m = fit.m3,
           fit.y = fit.y3, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1a3
 
 require(nnet)
 fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata)
 res.1a4 <- smi(fit.r = fit.r1, fit.m = fit.m4,
           fit.y = fit.y3, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1a4}
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 1-b: Binary Outcome
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 \donttest{# Continuous mediator
-fit.y1 <- glm(Y.bin ~ R + M.num + S + C.num + C.bin,
+fit.y1 <- glm(Y.bin ~ R + M.num + X + C.num + C.bin,
           data = sdata, family = binomial(link = "logit"))
 res.1b1 <- smi(fit.r = fit.r1, fit.m = fit.m1,
           fit.y = fit.y1, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 32)
 res.1b1
 
 # Binary mediator
-fit.y2 <- glm(Y.bin ~ R + M.bin + S + C.num + C.bin,
+fit.y2 <- glm(Y.bin ~ R + M.bin + X + C.num + C.bin,
           data = sdata, family = binomial(link = "logit"))
 res.1b2 <- smi(fit.r = fit.r1, fit.m = fit.m2,
           fit.y = fit.y2, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1b2
 
 # Categorical mediator
-fit.y3 <- glm(Y.bin ~ R + M.cat + S + C.num + C.bin,
+fit.y3 <- glm(Y.bin ~ R + M.cat + X + C.num + C.bin,
           data = sdata, family = binomial(link = "logit"))
 res.1b3 <- smi(fit.r = fit.r1, fit.m = fit.m3,
           fit.y = fit.y3, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1b3
 
 res.1b4 <- smi(fit.r = fit.r1, fit.m = fit.m4,
           fit.y = fit.y3, sims = 40, conditional = FALSE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.1b4}
 
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 # Example 2-a: Continuous Outcome, Conditional on Covariates
-#--------------------------------------------------------------#
+#---------------------------------------------------------------------------------#
 \donttest{# For conditional = T, need to create data with centered covariates
 # copy data
 sdata.c <- sdata
@@ -180,75 +177,75 @@ sdata.c$C.num <- scale(sdata.c$C.num, center = TRUE, scale = FALSE)
 sdata.c$C.bin <- relevel(sdata.c$C.bin, ref = "1")
 
 # Continuous mediator
-fit.y1 <- lm(Y.num ~ R + M.num + S + C.num + C.bin, data = sdata.c)
+fit.y1 <- lm(Y.num ~ R + M.num + X + C.num + C.bin, data = sdata.c)
 fit.m1 <- lm(M.num ~ R + C.num + C.bin, data = sdata.c)
 res.2a1 <- smi(fit.m = fit.m1,
           fit.y = fit.y1, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2a1
 
 # Binary mediator
-fit.y2 <- lm(Y.num ~ R + M.bin + S + C.num + C.bin, data = sdata.c)
+fit.y2 <- lm(Y.num ~ R + M.bin + X + C.num + C.bin, data = sdata.c)
 fit.m2 <- glm(M.bin ~ R + C.num + C.bin, data = sdata.c,
           family = binomial(link = "logit"))
 res.2a2 <- smi(fit.m = fit.m2,
           fit.y = fit.y2, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2a2
 
 # Categorical mediator
-fit.y3 <- lm(Y.num ~ R + M.cat + S + C.num + C.bin, data = sdata.c)
+fit.y3 <- lm(Y.num ~ R + M.cat + X + C.num + C.bin, data = sdata.c)
 fit.m3 <- polr(M.cat ~ R + C.num + C.bin, data = sdata.c)
 res.2a3 <- smi(fit.m = fit.m3,
           fit.y = fit.y3, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2a3
 
 fit.m4 <- multinom(M.cat ~ R + C.num + C.bin, data = sdata.c)
 res.2a4 <- smi(fit.m = fit.m4,
           fit.y = fit.y3, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2a4}
 
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 # Example 2-b: Binary Outcome, Conditional on Covariates
-#-----------------------------------------------------------#
+#------------------------------------------------------------------------------#
 \donttest{# Continuous mediator
-fit.y1 <- glm(Y.bin ~ R + M.num + S + C.num + C.bin,
+fit.y1 <- glm(Y.bin ~ R + M.num + X + C.num + C.bin,
           data = sdata.c, family = binomial(link = "logit"))
 res.2b1 <- smi(fit.m = fit.m1,
           fit.y = fit.y1, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2b1
 
 # Binary mediator
-fit.y2 <- glm(Y.bin ~ R + M.bin + S + C.num + C.bin,
+fit.y2 <- glm(Y.bin ~ R + M.bin + X + C.num + C.bin,
           data = sdata.c, family = binomial(link = "logit"))
 res.2b2 <- smi(fit.m = fit.m2,
           fit.y = fit.y2, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2b2
 
 # Categorical mediator
-fit.y3 <- glm(Y.bin ~ R + M.cat + S + C.num + C.bin,
+fit.y3 <- glm(Y.bin ~ R + M.cat + X + C.num + C.bin,
           data = sdata.c, family = binomial(link = "logit"))
 res.2b3 <- smi(fit.m = fit.m3,
           fit.y = fit.y3, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2b3
 
 res.2b4 <- smi(fit.m = fit.m4,
           fit.y = fit.y3, sims = 40, conditional = TRUE,
-          covariates = c("C.num", "C.bin"), treat = "R")
+          covariates = c("C.num", "C.bin"), treat = "R", seed = 111)
 res.2b4}
 }
 \references{
-Park, S., Kang, S., and Lee, C. (2021+). "Choosing an Optimal Method for Causal
-Decomposition Analysis: A Better Practice for Identifying Contributing Factors to
-Health Disparities".
+Park, S., Kang, S., and Lee, C. (2021+). "Choosing an optimal method for causal
+decomposition analysis: A better practice for identifying contributing factors to
+health disparities". arXiv preprint arXiv:2109.06940.
 }
 \seealso{
-\code{\link{mmi}}
+\code{\link{mmi}}, \code{\link{sensitivity}}
 }
 \author{
 Suyeon Kang, University of California, Riverside, \email{skang062@ucr.edu};

@@ -1,5 +1,5 @@
 # A function used in 'mmi' and 'smi' for comparing a pair of sel.lev.R vs ref.lev.treat
-select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.treat, wy, func){
+select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.treat, wy, func, weights){
   
   #:::::::::::::::::::::::::::#
   # Predict mediator::::::::::#
@@ -17,6 +17,37 @@ select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.tr
   M <- rep(NA, num.ms)
   PredictM <- data.frame(matrix(NA, n.y, num.ms))
   
+  # version 0.1.0
+  if(func == "smi"){
+    
+    alpha_r <- rep(NA, num.ms)
+    y.data.updated <- y.data
+    y.data.updated[, treat] <- relevel(y.data.updated[, treat], ref = sel.lev.treat)
+    fit.y.updated <- update(fit.y, data = y.data.updated)#, weights = y.data[, "(weights)"]) ### correct?
+    if (num.ms == 1){
+      meds <- all.vars(formula(fit.m))[[1]]
+      if(isGlm.m | isNominal.m | isOrdinal.m){ # modified on 07/19/2022 for polr from if(isGlm.m)
+        meds <- which(meds == substring(colnames(vcov(fit.y.updated)), 1, nchar(meds)))[1]
+      }
+      var_gamma <- vcov(fit.y.updated)[meds, meds]
+    } else if (num.ms == 2){
+      meds1 <- all.vars(formula(fit.m[[1]]))[[1]]
+      meds2 <- all.vars(formula(fit.m[[2]]))[[1]]
+      if(isGlm.m[1]){
+        meds1 <- which(meds1 == substring(colnames(vcov(fit.y.updated)), 1, nchar(meds1)))[1]
+      }
+      if(isGlm.m[2]){
+        meds2 <- which(meds2 == substring(colnames(vcov(fit.y.updated)), 1, nchar(meds2)))[1]
+      }
+      var_gamma <- vcov(fit.y.updated)[meds1, meds1] + vcov(fit.y.updated)[meds2, meds2] +
+        2 * vcov(fit.y.updated)[meds1, meds2]
+    } else {
+      var_gamma <- 0 ##will be corrected later
+    }
+    se_gamma <- sqrt(var_gamma)
+    
+  }
+  
   for(i in 1:num.ms){
     
     if(isMultiConfounders){
@@ -25,6 +56,19 @@ select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.tr
       fit.mm <- fit.m
     }
     M[i] <- all.vars(formula(fit.mm))[[1]]
+    
+    # version 0.1.0
+    if(func == "smi"){
+      
+      if(!isNominal.m){
+        name.R.in.M <- paste(treat, levels(y.data[, treat])[sel.lev.treat], sep = "")
+        ind.R.in.M <- which(names(coef(fit.mm)) == name.R.in.M)
+        alpha_r[i] <- as.numeric(coef(fit.mm)[ind.R.in.M])
+      } else {
+        alpha_r[i] <- 0 ##will be corrected later
+      }
+      
+    }
     
     ### Case 1: GLM Mediator
     if(isGlm.m[i]){
@@ -96,13 +140,23 @@ select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.tr
   if(conditional){
     a.f <- as.formula(paste("muldm ~ ", paste(covariates, collapse = "+")))
     a.w <- NULL
+    a.w <- weights
   } else if (!conditional){
     a.f <- as.formula(paste("muldm ~ 1"))
-    a.w <- y.data[y.data[, treat] == levels(y.data[, treat])[sel.grp], ]$w * prop.treat[sel.grp]
+    subind <- which(y.data[, treat] == levels(y.data[, treat])[sel.grp])
+    a.w <- y.data[subind, ]$w * prop.treat[sel.grp]
+    a.w <- a.w * weights[subind]
   }
   
   # Compute outcomes after incorporating predicted values of mediator(s) 
-  a <- lm(a.f, weights = a.w, data = y.data[y.data[, treat] == levels(y.data[, treat])[sel.grp], ])
+  # version 0.1.0
+  subind <- which(y.data[, treat] == levels(y.data[, treat])[sel.grp])
+  if(length(which(colnames(y.data) == "(weights)")) != 0){ # version 0.1.0
+    subdata <- y.data[subind, - which(colnames(y.data) == "(weights)")]
+  } else {
+    subdata <- y.data[subind, ]
+  }
+  a <- lm(a.f, weights = a.w[subind], data = subdata)
   wmuldm <- a$coef[1]
   w.ref.sel <- mean(as.numeric(wmuldm))
   
@@ -110,10 +164,18 @@ select.treat <- function(fit.m, fit.y, sel.lev.treat, ref.lev.treat = 1, prop.tr
   #:Results:::::::#
   #:::::::::::::::#
   # Initial disparity, Disparity remaining, and Disparity reduction in order
-  out <- rep(NA, 3)
+  out <- rep(NA, 5)
   out[1] <- wy[sel.lev.treat] - wy[ref.lev.treat]
   out[2] <- w.ref.sel - wy[ref.lev.treat]
   out[3] <- wy[sel.lev.treat] - w.ref.sel
+  
+  # version 0.1.0
+  if(func == "smi" & !isNominal.m){
+    out[4] <- sum(alpha_r)
+    out[5] <- se_gamma
+  } else {
+    out[c(4, 5)] <- 0
+  }
   
   return(out)
 }
